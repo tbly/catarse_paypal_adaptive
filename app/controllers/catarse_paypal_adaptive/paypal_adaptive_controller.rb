@@ -1,21 +1,15 @@
 class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
-  include ActiveMerchant::Billing::Integrations
+  include PayPal::SDK::AdaptivePayments
 
   skip_before_filter :force_http
 
   SCOPE = "projects.contributions.checkout"
   layout :false
 
-  def review
-  end
-
   def ipn
-    if contribution && notification.acknowledge && (contribution.payment_method == 'PayPal' || contribution.payment_method.nil?)
+    if PayPal::SDK::Core::API::IPN.valid?(request.raw_post) && (contribution.payment_method == 'PayPal' || contribution.payment_method.nil?)
       process_paypal_message params
-      contribution.update_attributes({
-        :payment_service_fee => params['mc_fee'],
-        :payer_email => params['payer_email']
-      })
+      contribution.update_attributes(:payment_service_fee => params['mc_fee'], :payer_email => params['payer_email'])
     else
       return render status: 500, nothing: true
     end
@@ -26,19 +20,31 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
 
   def pay
     begin
-      response = gateway.setup_purchase(contribution.price_in_cents, {
-        ip: request.remote_ip,
-        return_url: success_paypal_adaptive_url(id: contribution.id),
-        cancel_return_url: cancel_paypal_adaptive_url(id: contribution.id),
-        currency_code: 'BRL',
-        description: t('paypal_description', scope: SCOPE, :project_name => contribution.project.name, :value => contribution.display_value),
-        notify_url: ipn_paypal_adaptive_index_url(subdomain: 'www')
-      })
+      @pay = api.build_pay({
+        :actionType => "PAY",
+        :cancelUrl => cancel_paypal_adaptive_url(id: contribution.id),
+        :currencyCode => "EUR",
+        :feesPayer => "SENDER",
+        :ipnNotificationUrl => ipn_paypal_adaptive_index_url(subdomain: 'www'),
+        :receiverList => {
+          :receiver => [{
+            :amount => contribution.price_in_cents.to_f/100,
+            :email => contribution.user.email }] },
+        :returnUrl => success_paypal_adaptive_url(id: contribution.id) })
 
-      process_paypal_message response.params
-      contribution.update_attributes payment_method: 'PayPal', payment_token: response.token
-
-      redirect_to gateway.redirect_url_for(response.token)
+      response = api.pay(@pay) if request.post?
+      
+      PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: response.to_hash
+      
+      if response.success? && response.payment_exec_status != "ERROR"
+        contribution.update_attributes payment_method: 'PayPal', payment_token: response.payKey
+        redirect_to api.payment_url(response)  # Url to complete payment
+      else
+        Rails.logger.info "-----> #{response.error}"
+        flash[:failure] = t('paypal_error', scope: SCOPE)
+        return redirect_to main_app.new_project_contribution_path(contribution.project)
+      end
+      
     rescue Exception => e
       Rails.logger.info "-----> #{e.inspect}"
       flash[:failure] = t('paypal_error', scope: SCOPE)
@@ -48,18 +54,21 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
 
   def success
     begin
-      purchase = gateway.purchase(contribution.price_in_cents, {
-        ip: request.remote_ip,
-        token: contribution.payment_token,
-        payer_id: params[:PayerID]
-      })
+      payment_details = api.build_payment_details(:payKey => contribution.payment_token)
+      response = api.payment_details(payment_details)
+      
+      PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: response.to_hash
+         
+      if response.success? && response.status == 'COMPLETED'
+        # contribution.update_attributes payment_id: purchase.params['transaction_id'] if purchase.params['transaction_id']
+        contribution.confirm!
 
-      # we must get the deatils after the purchase in order to get the transaction_id
-      process_paypal_message purchase.params
-      contribution.update_attributes payment_id: purchase.params['transaction_id'] if purchase.params['transaction_id']
-
-      flash[:success] = t('success', scope: SCOPE)
-      redirect_to main_app.project_contribution_path(project_id: contribution.project.id, id: contribution.id)
+        flash[:success] = t('success', scope: SCOPE)
+        redirect_to main_app.project_contribution_path(project_id: contribution.project.id, id: contribution.id)
+      else 
+        flash[:failure] = t('paypal_error', scope: SCOPE)
+        redirect_to main_app.new_project_contribution_path(contribution.project)
+      end      
     rescue Exception => e
       Rails.logger.info "-----> #{e.inspect}"
       flash[:failure] = t('paypal_error', scope: SCOPE)
@@ -68,6 +77,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
   end
 
   def cancel
+    PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: response.to_hash
     flash[:failure] = t('paypal_cancel', scope: SCOPE)
     redirect_to main_app.new_project_contribution_path(contribution.project)
   end
@@ -80,35 +90,11 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
                 end
   end
 
-  def process_paypal_message(data)
-    extra_data = (data['charset'] ? JSON.parse(data.to_json.force_encoding(data['charset']).encode('utf-8')) : data)
-    PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: extra_data
 
-    if data["checkout_status"] == 'PaymentActionCompleted'
-      contribution.confirm!
-    elsif data["payment_status"]
-      case data["payment_status"].downcase
-      when 'completed'
-        contribution.confirm!
-      when 'refunded'
-        contribution.refund!
-      when 'canceled_reversal'
-        contribution.cancel!
-      when 'expired', 'denied'
-        contribution.pendent!
-      else
-        contribution.waiting! if contribution.pending?
-      end
-    end
+  private
+
+  def api
+    @api ||= API.new
   end
-
-  def gateway
-    @gateway ||= CatarsePaypalAdaptive::Gateway.instance
-  end
-
-  protected
-
-  def notification
-    @notification ||= Paypal::Notification.new(request.raw_post)
-  end
+  
 end

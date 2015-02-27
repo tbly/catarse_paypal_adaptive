@@ -13,20 +13,20 @@ module CatarsePaypalAdaptive
     end
 
     def setup_gateway
-      check_default_configurations!
-      ActiveMerchant::Billing::PaypalAdaptiveGateway.new({
-        login: @configuration[:paypal_username],
-        password: @configuration[:paypal_password],
-        signature: @configuration[:paypal_signature]
-      })
+      # check_default_configurations!
+      # ActiveMerchant::Billing::PaypalAdaptiveGateway.new({
+      #   login: @configuration[:paypal_username],
+      #   password: @configuration[:paypal_password],
+      #   signature: @configuration[:paypal_signature]
+      # })
     end
 
     private
 
     def check_default_configurations!
-      %i(paypal_username paypal_password paypal_signature).each do |key|
-        raise pending_configuration_message unless @configuration[key].present?
-      end
+      # %i(paypal_username paypal_password paypal_signature).each do |key|
+      #   raise pending_configuration_message unless @configuration[key].present?
+      # end
     end
 
     def pending_configuration_message
