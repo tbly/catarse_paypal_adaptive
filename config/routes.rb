@@ -1,5 +1,5 @@
-CatarsePaypalExpress::Engine.routes.draw do
-  resources :paypal_express, only: [], path: 'payment/paypal_express' do
+CatarsePaypalAdaptive::Engine.routes.draw do
+  resources :paypal_adaptive, only: [], path: 'payment/paypal_adaptive' do
     collection do
       post :ipn
     end

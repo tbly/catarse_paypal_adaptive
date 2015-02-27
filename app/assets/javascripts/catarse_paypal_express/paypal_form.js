@@ -1,5 +1,5 @@
 App.addChild('PayPalForm', _.extend({
-  el: '#catarse_paypal_express_form',
+  el: '#catarse_paypal_adaptive_form',
 
   events: {
     'click input[type=submit]': 'onSubmitToPayPal',

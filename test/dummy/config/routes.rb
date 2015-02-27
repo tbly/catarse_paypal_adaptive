@@ -1,4 +1,4 @@
 Rails.application.routes.draw do
 
-  mount CatarsePaypalExpress::Engine => "/catarse_paypal_express"
+  mount CatarsePaypalAdaptive::Engine => "/catarse_paypal_adaptive"
 end

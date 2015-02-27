@@ -1,4 +1,4 @@
-class CatarsePaypalExpress::PaypalExpressController < ApplicationController
+class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
   include ActiveMerchant::Billing::Integrations
 
   skip_before_filter :force_http
@@ -28,11 +28,11 @@ class CatarsePaypalExpress::PaypalExpressController < ApplicationController
     begin
       response = gateway.setup_purchase(contribution.price_in_cents, {
         ip: request.remote_ip,
-        return_url: success_paypal_express_url(id: contribution.id),
-        cancel_return_url: cancel_paypal_express_url(id: contribution.id),
+        return_url: success_paypal_adaptive_url(id: contribution.id),
+        cancel_return_url: cancel_paypal_adaptive_url(id: contribution.id),
         currency_code: 'BRL',
         description: t('paypal_description', scope: SCOPE, :project_name => contribution.project.name, :value => contribution.display_value),
-        notify_url: ipn_paypal_express_index_url(subdomain: 'www')
+        notify_url: ipn_paypal_adaptive_index_url(subdomain: 'www')
       })
 
       process_paypal_message response.params
@@ -103,7 +103,7 @@ class CatarsePaypalExpress::PaypalExpressController < ApplicationController
   end
 
   def gateway
-    @gateway ||= CatarsePaypalExpress::Gateway.instance
+    @gateway ||= CatarsePaypalAdaptive::Gateway.instance
   end
 
   protected

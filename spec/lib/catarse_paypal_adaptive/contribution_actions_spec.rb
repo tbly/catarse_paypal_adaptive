@@ -1,7 +1,7 @@
 require 'spec_helper'
 
-describe CatarsePaypalExpress::ContributionActions do
-  let(:contribution_actions) { CatarsePaypalExpress::ContributionActions.new(contribution) }
+describe CatarsePaypalAdaptive::ContributionActions do
+  let(:contribution_actions) { CatarsePaypalAdaptive::ContributionActions.new(contribution) }
   let(:gateway) { double('gateway') }
   let(:contribution) {
     double(:contribution, {id: 1, payment_id: '123a'})
@@ -9,7 +9,7 @@ describe CatarsePaypalExpress::ContributionActions do
   let(:refund_return) { double }
 
   before do
-    CatarsePaypalExpress::Gateway.stub(:instance).and_return(gateway)
+    CatarsePaypalAdaptive::Gateway.stub(:instance).and_return(gateway)
   end
 
   describe '#refund' do

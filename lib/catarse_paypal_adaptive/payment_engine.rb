@@ -1,4 +1,4 @@
-module CatarsePaypalExpress
+module CatarsePaypalAdaptive
   class PaymentEngine
 
     def name
@@ -6,7 +6,7 @@ module CatarsePaypalExpress
     end
 
     def review_path contribution
-      CatarsePaypalExpress::Engine.routes.url_helpers.review_paypal_express_path(contribution)
+      CatarsePaypalAdaptive::Engine.routes.url_helpers.review_paypal_adaptive_path(contribution)
     end
 
     def can_do_refund?
@@ -14,7 +14,7 @@ module CatarsePaypalExpress
     end
 
     def direct_refund contribution
-      CatarsePaypalExpress::ContributionActions.new(contribution).refund
+      CatarsePaypalAdaptive::ContributionActions.new(contribution).refund
     end
 
     def locale

@@ -1,4 +1,4 @@
-module CatarsePaypalExpress
+module CatarsePaypalAdaptive
   class Gateway
     include ActiveMerchant::Billing::Integrations
 
@@ -14,7 +14,7 @@ module CatarsePaypalExpress
 
     def setup_gateway
       check_default_configurations!
-      ActiveMerchant::Billing::PaypalExpressGateway.new({
+      ActiveMerchant::Billing::PaypalAdaptiveGateway.new({
         login: @configuration[:paypal_username],
         password: @configuration[:paypal_password],
         signature: @configuration[:paypal_signature]

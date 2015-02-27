@@ -1,4 +1,4 @@
-# CatarsePaypalExpress [![Code Climate](https://codeclimate.com/github/catarse/catarse_paypal_express.png)](https://codeclimate.com/github/catarse/catarse_paypal_express)
+# CatarsePaypalAdaptive [![Code Climate](https://codeclimate.com/github/catarse/catarse_paypal_adaptive.png)](https://codeclimate.com/github/catarse/catarse_paypal_adaptive)
 
 Catarse paypal express integration with [Catarse](http://github.com/danielweinmann/catarse) crowdfunding platform
 
@@ -6,7 +6,7 @@ Catarse paypal express integration with [Catarse](http://github.com/danielweinma
 
 Add this lines to your Catarse application's Gemfile:
 
-    gem 'catarse_paypal_express'
+    gem 'catarse_paypal_adaptive'
 
 And then execute:
 
@@ -16,7 +16,7 @@ And then execute:
 
 Configure the routes for your Catarse application. Add the following lines in the routes file (config/routes.rb):
 
-    mount CatarsePaypalExpress::Engine => "/", :as => "catarse_paypal_express"
+    mount CatarsePaypalAdaptive::Engine => "/", :as => "catarse_paypal_adaptive"
 
 ## Rails 3.2.x and Rails 4 support
 
@@ -41,7 +41,7 @@ In Rails console, run this:
 
 Clone the repository:
 
-    $ git clone git://github.com/devton/catarse_paypal_express.git
+    $ git clone git://github.com/devton/catarse_paypal_adaptive.git
 
 Add the catarse code into test/dummy:
 

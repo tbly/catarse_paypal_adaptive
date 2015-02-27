@@ -1,4 +1,4 @@
-module CatarsePaypalExpress
+module CatarsePaypalAdaptive
   class ContributionActions
 
     def initialize contribution
@@ -13,7 +13,7 @@ module CatarsePaypalExpress
     private
 
     def gateway
-      @gateway ||= CatarsePaypalExpress::Gateway.instance
+      @gateway ||= CatarsePaypalAdaptive::Gateway.instance
     end
 
   end

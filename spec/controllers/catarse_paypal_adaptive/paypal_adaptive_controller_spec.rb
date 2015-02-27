@@ -2,8 +2,8 @@
 
 require 'spec_helper'
 
-describe CatarsePaypalExpress::PaypalExpressController do
-  SCOPE = CatarsePaypalExpress::PaypalExpressController::SCOPE
+describe CatarsePaypalAdaptive::PaypalAdaptiveController do
+  SCOPE = CatarsePaypalAdaptive::PaypalAdaptiveController::SCOPE
   before do
     PaymentEngines.stub(:find_payment).and_return(contribution)
     PaymentEngines.stub(:create_payment_notification)
@@ -43,7 +43,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
 
   describe "GET review" do
     before do
-      get :review, id: contribution.id, use_route: 'catarse_paypal_express'
+      get :review, id: contribution.id, use_route: 'catarse_paypal_adaptive'
     end
     it{ should render_template(:review) }
   end
@@ -59,7 +59,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
 
     context "when payment_method is MoIP" do
       before do
-        params = ipn_data.merge({ use_route: 'catarse_paypal_express' })
+        params = ipn_data.merge({ use_route: 'catarse_paypal_adaptive' })
 
         notification.stub(:acknowledge).and_return(true)
         contribution.stub(:payment_method).and_return('MoIP')
@@ -78,7 +78,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
 
     context "when is a valid ipn data" do
       before do
-        params = ipn_data.merge({ use_route: 'catarse_paypal_express' })
+        params = ipn_data.merge({ use_route: 'catarse_paypal_adaptive' })
 
         notification.stub(:acknowledge).and_return(true)
 
@@ -87,7 +87,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
           payer_email: ipn_data['payer_email']
         })
         controller.should_receive(:process_paypal_message).with(ipn_data.merge({
-          "controller"=>"catarse_paypal_express/paypal_express",
+          "controller"=>"catarse_paypal_adaptive/paypal_adaptive",
           "action"=>"ipn"
         }))
 
@@ -104,7 +104,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
       let(:ipn_data){ {"mc_gross"=>"50.00", "payment_status" => 'confirmed', "txn_id" => "3R811766V4891372K", 'payer_email' => 'fake@email.com', 'mc_fee' => '0.0'} }
 
       before do
-        params = ipn_data.merge({ use_route: 'catarse_paypal_express' })
+        params = ipn_data.merge({ use_route: 'catarse_paypal_adaptive' })
 
         notification.stub(:acknowledge).and_return(false)
 
@@ -114,7 +114,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
         }).never
 
         controller.should_receive(:process_paypal_message).with(ipn_data.merge({
-          "controller"=>"catarse_paypal_express/paypal_express",
+          "controller"=>"catarse_paypal_adaptive/paypal_adaptive",
           "action"=>"ipn"
         })).never
 
@@ -131,7 +131,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
   describe "POST pay" do
     before do
       set_paypal_response
-      post :pay, { id: contribution.id, locale: 'en', use_route: 'catarse_paypal_express' }
+      post :pay, { id: contribution.id, locale: 'en', use_route: 'catarse_paypal_adaptive' }
     end
 
 
@@ -156,11 +156,11 @@ describe CatarsePaypalExpress::PaypalExpressController do
           contribution.price_in_cents,
           {
             ip: request.remote_ip,
-            return_url: 'http://test.host/catarse_paypal_express/payment/paypal_express/1/success',
-            cancel_return_url: 'http://test.host/catarse_paypal_express/payment/paypal_express/1/cancel',
+            return_url: 'http://test.host/catarse_paypal_adaptive/payment/paypal_adaptive/1/success',
+            cancel_return_url: 'http://test.host/catarse_paypal_adaptive/payment/paypal_adaptive/1/cancel',
             currency_code: 'BRL',
             description: I18n.t('paypal_description', scope: SCOPE, :project_name => contribution.project.name, :value => contribution.display_value),
-            notify_url: 'http://test.host/catarse_paypal_express/payment/paypal_express/ipn'
+            notify_url: 'http://test.host/catarse_paypal_adaptive/payment/paypal_adaptive/ipn'
           }
         ).and_return(success_response)
         contribution.should_receive(:update_attributes).with({
@@ -176,7 +176,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
   describe "GET cancel" do
     before do
       main_app.should_receive(:new_project_contribution_path).with(contribution.project).and_return('new contribution url')
-      get :cancel, { id: contribution.id, locale: 'en', use_route: 'catarse_paypal_express' }
+      get :cancel, { id: contribution.id, locale: 'en', use_route: 'catarse_paypal_adaptive' }
     end
     it 'should show for user the flash message' do
       controller.flash[:failure].should == I18n.t('paypal_cancel', scope: SCOPE)
@@ -186,7 +186,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
 
   describe "GET success" do
     let(:success_details){ double('success_details', params: {'transaction_id' => '12345', "checkout_status" => "PaymentActionCompleted"}) }
-    let(:params){{ id: contribution.id, PayerID: '123', locale: 'en', use_route: 'catarse_paypal_express' }}
+    let(:params){{ id: contribution.id, PayerID: '123', locale: 'en', use_route: 'catarse_paypal_adaptive' }}
 
     before do
       gateway.should_receive(:purchase).with(contribution.price_in_cents, {
@@ -242,7 +242,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
         { paypal_username: 'username', paypal_password: 'pass', paypal_signature: 'signature' }
       end
       before do
-        ActiveMerchant::Billing::PaypalExpressGateway.should_receive(:new).with({
+        ActiveMerchant::Billing::PaypalAdaptiveGateway.should_receive(:new).with({
           login: PaymentEngines.configuration[:paypal_username],
           password: PaymentEngines.configuration[:paypal_password],
           signature: PaymentEngines.configuration[:paypal_signature]
@@ -254,7 +254,7 @@ describe CatarsePaypalExpress::PaypalExpressController do
     context "when we do not have the paypal configuration" do
       let(:paypal_config){ {} }
       before do
-        ActiveMerchant::Billing::PaypalExpressGateway.should_not_receive(:new)
+        ActiveMerchant::Billing::PaypalAdaptiveGateway.should_not_receive(:new)
       end
       it{ should be_nil }
     end
