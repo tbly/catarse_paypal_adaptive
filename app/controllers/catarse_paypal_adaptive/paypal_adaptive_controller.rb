@@ -2,6 +2,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
   include PayPal::SDK::AdaptivePayments
 
   skip_before_filter :force_http
+  skip_before_filter :verify_authenticity_token, :only => [:ipn]
 
   SCOPE = "projects.contributions.checkout"
   layout :false
