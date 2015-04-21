@@ -85,7 +85,8 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
 
   def contribution
     @contribution ||= if params['id']
-                  PaymentEngines.find_payment(id: params['id'])
+                  # PaymentEngines.find_payment(id: params['id'])
+                  PaymentEngines.find_contribution(params['id'])
                 elsif params['txn_id']
                   PaymentEngines.find_payment(payment_id: params['txn_id']) || (params['parent_txn_id'] && PaymentEngines.find_payment(payment_id: params['parent_txn_id']))
                 end
