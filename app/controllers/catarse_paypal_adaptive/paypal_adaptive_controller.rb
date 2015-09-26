@@ -21,6 +21,57 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
 
   def pay
     begin
+      # Build request object
+      @preapproval = @api.build_preapproval({
+        :cancelUrl => cancel_paypal_adaptive_url(id: contribution.id, :protocol => (Rails.env.production? ? "http" : "https")),
+        :currencyCode => "USD",
+        :returnUrl => success_paypal_adaptive_url(id: contribution.id, :protocol => (Rails.env.production? ? "http" : "https")),
+        :ipnNotificationUrl => ipn_paypal_adaptive_index_url(subdomain: 'www'),
+        :startingDate => (Time.now + 5.minutes).strftime("%FZ"),
+        :endingDate => (contribution.project.expires_at + 6.months).strftime("%FZ"),
+        :maxNumberOfPayments => 2,
+        :maxNumberOfPaymentsPerPeriod => 2,
+        :maxAmountPerPayment => contribution.price_in_cents.to_f/100,
+        :maxTotalAmountOfAllPayments => contribution.price_in_cents.to_f/100,
+        :senderEmail => contribution.payer_email,
+        :memo => "Support project #{contribution.project.name} on Philamthropy"
+        :feesPayer => "SENDER" })
+
+      # Make API call & get response
+      @preapproval_response = @api.preapproval(@preapproval) if request.post?
+
+      # Access Response
+      if @preapproval_response.success?
+        # @preapproval_response.preapprovalKey
+        PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: @preapproval_response.to_hash
+        payment = contribution.payments.new gateway: 'Paypal', 
+                                            payment_method: 'PayPal', 
+                                            key: @preapproval_response.preapprovalKey, 
+                                            state: 'pending',
+                                            value: contribution.price_in_cents.to_f/100,
+                                            installment_value: contribution.price_in_cents.to_f/100
+        payment.save(validate: false)
+
+        # redirect_to "https://www.paypal.com/webscr?cmd=_ap-preapproval&preapprovalkey=#{@preapproval_response.preapprovalKey}"
+        # redirect_to "https://www.sandbox.paypal.com/webscr?cmd=_ap-preapproval&preapprovalkey=#{@preapproval_response.preapprovalKey}"
+        redirect_to api.payment_url(@preapproval_response)  # Url to complete payment
+      else
+        # @preapproval_response.error
+        PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: @preapproval_response.to_hash
+        Rails.logger.info "-----> #{response.error}"
+        flash[:failure] = t('paypal_error', scope: SCOPE)
+        return redirect_to main_app.new_project_contribution_path(contribution.project)
+      end
+
+    rescue Exception => e
+      Rails.logger.info "-----> #{e.inspect}"
+      flash[:failure] = t('paypal_error', scope: SCOPE)
+      return redirect_to main_app.new_project_contribution_path(contribution.project)
+    end
+  end
+
+  def pay_old
+    begin
       @pay = api.build_pay({
         :actionType => "PAY",
         :cancelUrl => cancel_paypal_adaptive_url(id: contribution.id),
@@ -30,7 +81,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
         :receiverList => {
           :receiver => [{
             :amount => contribution.price_in_cents.to_f/100,
-            :email => contribution.user.email }] },
+            :email => contribution.payer_email }] },
         :returnUrl => success_paypal_adaptive_url(id: contribution.id) })
 
       response = api.pay(@pay) if request.post?
@@ -55,6 +106,29 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
 
   def success
     begin
+      payment = contribution.payments.last
+      @preapproval_details = api.build_preapproval_details(:preapprovalKey => payment.key)
+      @preapproval_details_response = api.preapproval_details(@preapproval_details) if request.post?
+      if @preapproval_details_response.success? && @preapproval_details_response.status == 'ACTIVE' && @preapproval_details_response.approved == true
+        payment.update_attributes(state: 'paid', payment_token: payment.key)
+        flash[:success] = t('success', scope: SCOPE)
+        redirect_to main_app.project_contribution_path(project_id: contribution.project.id, id: contribution.id)
+      else
+        payment.update_attributes(state: 'refused')
+        PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: @preapproval_response.to_hash
+        flash[:failure] = t('paypal_error', scope: SCOPE)
+        return redirect_to main_app.new_project_contribution_path(contribution.project)
+      end
+    rescue Exception => e
+      payment.update_attributes(state: 'refused')
+      Rails.logger.info "-----> #{e.inspect}"
+      flash[:failure] = t('paypal_error', scope: SCOPE)
+      return redirect_to main_app.new_project_contribution_path(contribution.project)
+    end  
+  end
+
+  def success_old
+    begin
       payment_details = api.build_payment_details(:payKey => contribution.payment_token)
       response = api.payment_details(payment_details)
       
@@ -78,6 +152,15 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
   end
 
   def cancel
+    payment = contribution.payments.last
+    payment.update_attributes(state: 'refused')
+    PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: {:status => "CANCELED"}
+
+    flash[:failure] = t('paypal_cancel', scope: SCOPE)
+    redirect_to main_app.new_project_contribution_path(contribution.project)
+  end
+
+  def cancel_old
     PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: response.to_hash
     flash[:failure] = t('paypal_cancel', scope: SCOPE)
     redirect_to main_app.new_project_contribution_path(contribution.project)
