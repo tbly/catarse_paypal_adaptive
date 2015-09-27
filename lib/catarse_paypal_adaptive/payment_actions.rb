@@ -1,5 +1,6 @@
 module CatarsePaypalAdaptive
   class PaymentActions
+    include PayPal::SDK::AdaptivePayments
 
     def initialize payment
       @payment = payment
@@ -14,10 +15,10 @@ module CatarsePaypalAdaptive
       if path_amount > 0 
         pay = api.build_pay({
                               :actionType => "PAY",
-                              :cancelUrl => cancel_paypal_adaptive_url(id: @payment.contribution.id, :protocol => (Rails.env.production? ? "https" : "http")),
-                              :returnUrl => success_paypal_adaptive_url(id: @payment.contribution.id, :protocol => (Rails.env.production? ? "https" : "http")),
+                              :cancelUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:base_url), status: 'CANCELED'),
+                              :returnUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:base_url), status: 'SUCCEEDED'),
                               :currencyCode => "USD",
-                              :memo => "Support project #{@paymeny.contribution.project.name} on Philamthropy",
+                              :memo => "Support project #{@payment.contribution.project.name} on Philamthropy",
                               :feesPayer => "PRIMARYRECEIVER",
                               :senderEmail => @payment.contribution.payer_email,
                               :preapprovalKey => @payment.payment_token,
@@ -34,8 +35,8 @@ module CatarsePaypalAdaptive
       else
         pay = api.build_pay({
                               :actionType => "PAY",
-                              :cancelUrl => cancel_paypal_adaptive_url(id: @payment.contribution.id, :protocol => (Rails.env.production? ? "https" : "http")),
-                              :returnUrl => success_paypal_adaptive_url(id: @payment.contribution.id, :protocol => (Rails.env.production? ? "https" : "http")),
+                              :cancelUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:base_url), status: 'CANCELED'),
+                              :returnUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:base_url), status: 'SUCCEEDED'),
                               :currencyCode => "USD",
                               :memo => "Support project #{@paymeny.contribution.project.name} on Philamthropy",
                               :feesPayer => "SENDER",
@@ -49,7 +50,7 @@ module CatarsePaypalAdaptive
                                                 }
                             })
       end
-      @pay_response = api.pay(@pay)
+      @pay_response = api.pay(pay)
 
       # Access Response
       if @pay_response.success?
@@ -58,21 +59,21 @@ module CatarsePaypalAdaptive
         return true
       else
         PaymentEngines.create_payment_notification contribution_id: @payment.contribution.id, extra_data: @pay_response.to_hash
-        if @payment.pay_failed_count > 3
+        if @payment.pay_failed_count.to_i > 3
           @payment.update_attributes({state: 'refused', refused_at: Time.now})
           return true
         else
-          @payment.update_attributes({pay_failed_count: @payment.pay_failed_count + 1})
+          @payment.update_attributes({pay_failed_count: @payment.pay_failed_count.to_i + 1})
           return false
         end
       end
     end
 
     def cancel_payment
-      @cancel_preapproval = @api.build_cancel_preapproval({:preapprovalKey => @payment.payment_token })
+      cancel_preapproval = @api.build_cancel_preapproval({:preapprovalKey => @payment.payment_token })
 
       # Make API call & get response
-      @cancel_preapproval_response = @api.cancel_preapproval(@cancel_preapproval)
+      @cancel_preapproval_response = @api.cancel_preapproval(cancel_preapproval)
 
       # Access Response
       if @cancel_preapproval_response.success?

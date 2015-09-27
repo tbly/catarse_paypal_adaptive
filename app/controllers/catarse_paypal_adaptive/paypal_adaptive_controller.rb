@@ -166,6 +166,10 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
     redirect_to main_app.new_project_contribution_path(contribution.project)
   end
 
+  def payment_callback
+    # do nothing
+  end
+
   def contribution
     @contribution ||= if params['id']
                   # PaymentEngines.find_payment(id: params['id'])

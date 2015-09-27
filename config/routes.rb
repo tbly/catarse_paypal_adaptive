@@ -9,6 +9,7 @@ CatarsePaypalAdaptive::Engine.routes.draw do
       post :pay
       get  :success
       get  :cancel
+      get  :payment_callback
     end
   end
 end
