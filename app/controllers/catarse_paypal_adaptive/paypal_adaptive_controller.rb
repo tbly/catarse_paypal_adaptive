@@ -34,8 +34,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
         :maxAmountPerPayment => contribution.price_in_cents.to_f/100,
         :maxTotalAmountOfAllPayments => contribution.price_in_cents.to_f/100,
         :senderEmail => contribution.payer_email,
-        :memo => "Support project #{contribution.project.name} on Philamthropy",
-        :feesPayer => "SENDER" })
+        :memo => "Support project #{contribution.project.name} on Philamthropy" })
 
       # Make API call & get response
       @preapproval_response = api.preapproval(@preapproval) if request.post?

@@ -15,15 +15,15 @@ module CatarsePaypalAdaptive
       if path_amount > 0 
         pay = api.build_pay({
                               :actionType => "PAY",
-                              :cancelUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:base_url), status: 'CANCELED'),
-                              :returnUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:base_url), status: 'SUCCEEDED'),
+                              :cancelUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:host), status: 'CANCELED'),
+                              :returnUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:host), status: 'SUCCEEDED'),
                               :currencyCode => "USD",
                               :memo => "Support project #{@payment.contribution.project.name} on Philamthropy",
                               :feesPayer => "PRIMARYRECEIVER",
                               :senderEmail => @payment.contribution.payer_email,
                               :preapprovalKey => @payment.payment_token,
                               :receiverList =>  {
-                                                  :receiver =>  [ { :amount => @payment.contribution.price_in_cents.to_f/100,
+                                                  :receiver =>  [ { :amount => @payment.value.to_f,
                                                                     :email => @payment.contribution.payer_email,
                                                                     :primary => true },
                                                                   { :amount => path_amount,
@@ -35,16 +35,16 @@ module CatarsePaypalAdaptive
       else
         pay = api.build_pay({
                               :actionType => "PAY",
-                              :cancelUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:base_url), status: 'CANCELED'),
-                              :returnUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:base_url), status: 'SUCCEEDED'),
+                              :cancelUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:host), status: 'CANCELED'),
+                              :returnUrl => CatarsePaypalAdaptive::Engine.routes.url_helpers.payment_callback_paypal_adaptive_path(id: @payment.contribution.id, protocol: (Rails.env.production? ? "https" : "http"), host: CatarseSettings.get_without_cache(:host), status: 'SUCCEEDED'),
                               :currencyCode => "USD",
                               :memo => "Support project #{@paymeny.contribution.project.name} on Philamthropy",
-                              :feesPayer => "SENDER",
+                              :feesPayer => "PRIMARYRECEIVER",
                               :senderEmail => @payment.contribution.payer_email,
                               :preapprovalKey => @payment.payment_token,
                               :receiverList =>  {
                                                   :receiver =>  [{
-                                                                  :amount => @payment.contribution.price_in_cents.to_f/100,
+                                                                  :amount => @payment.value.to_f,
                                                                   :email => @payment.contribution.payer_email
                                                                 }] 
                                                 }
@@ -78,7 +78,7 @@ module CatarsePaypalAdaptive
       # Access Response
       if @cancel_preapproval_response.success?
         PaymentEngines.create_payment_notification contribution_id: @payment.contribution.id, extra_data: @cancel_preapproval_response.to_hash
-        @payment.update_attributes({state: 'refused', refused_at: Time.now})
+        @payment.update_attributes({state: 'refunded', refunded_at: Time.now})
         return true
       else
         PaymentEngines.create_payment_notification contribution_id: @payment.contribution.id, extra_data: @cancel_preapproval_response.to_hash
