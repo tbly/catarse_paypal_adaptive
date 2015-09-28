@@ -46,6 +46,7 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
         payment = contribution.payments.new gateway: 'Paypal', 
                                             payment_method: 'PayPal', 
                                             payment_token: @preapproval_response.preapprovalKey, 
+                                            key: @preapproval_response.preapprovalKey, 
                                             state: 'pending',
                                             value: contribution.price_in_cents.to_f/100,
                                             installment_value: contribution.price_in_cents.to_f/100
@@ -58,13 +59,13 @@ class CatarsePaypalAdaptive::PaypalAdaptiveController < ApplicationController
         # @preapproval_response.error
         PaymentEngines.create_payment_notification contribution_id: contribution.id, extra_data: @preapproval_response.to_hash
         Rails.logger.info "-----> #{response.error}"
-        flash[:error] = t('paypal_error', scope: SCOPE)
+        flash[:notice] = t('paypal_error', scope: SCOPE)
         return redirect_to main_app.new_project_contribution_path(contribution.project)
       end
 
     rescue Exception => e
       Rails.logger.info "-----> #{e.inspect}"
-      flash[:error] = t('paypal_error', scope: SCOPE)
+      flash[:notice] = t('paypal_error', scope: SCOPE)
       return redirect_to main_app.new_project_contribution_path(contribution.project)
     end
   end
